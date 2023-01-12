@@ -68,14 +68,6 @@ programInputGuess guesses curGuessNumber difficulty possibleTargets maxLieIndex 
 
         if difficulty == NormalProgram || (difficulty == ExpertProgram && not considerLies)
             then do
-                -- let currentTargets = guessesWithRemoved possibleTargets
-                --     maxRemovedCount = foldr 
-                --         (\(word, removedCount) acc -> max removedCount acc) (-1) currentTargets
-
-                --     guessesWithRemovedMax = filter (\(word, removedCount) -> removedCount == maxRemovedCount) currentTargets
-
-                -- randomNumber <- evalRandIO $ getRandomR (0, length guessesWithRemovedMax - 1)
-                -- let selectedGuess = fst (guessesWithRemovedMax !! randomNumber) 
                 let currentTargets = guessesWithRemoved possibleTargets 
                 
                 selectedGuess <- getSelectedGuess currentTargets   
@@ -111,7 +103,6 @@ programInputGuess guesses curGuessNumber difficulty possibleTargets maxLieIndex 
                 allTargetsWithRemoved = map (\target -> 
                     foldr (\(target2, removed) acc -> if target == target2 then (target, removed + snd acc) else acc) 
                         (target, 0) allTargetsWithRemovedWithDuplicates) allUniqueTargets
-                -- allPossibleTargetsFromAllSets = nub $ concatMap (\guesses -> allPossibleTargets guesses) allPossibleGuesses
 
             forM_ allPossibleGuesses (\gs -> do
                 putStrLn $ "\nFor the truthful guesses: " ++ show gs ++ "\nThe possible targets are:\n" ++ (show $ allPossibleTargets gs))
@@ -119,15 +110,6 @@ programInputGuess guesses curGuessNumber difficulty possibleTargets maxLieIndex 
             putStrLn $ "All the possible targets with removed and duplicates for all lying possibilities: " ++ 
                 show allTargetsWithRemovedWithDuplicates
 
-            -- let currentTargetsWithRemoved = allTargetsWithRemoved
-
-            --     maxRemovedCount = foldr 
-            --         (\(word, removedCount) acc -> max removedCount acc) (-1) currentTargetsWithRemoved
-
-            --     guessesWithRemovedMax = filter (\(word, removedCount) -> removedCount == maxRemovedCount) currentTargetsWithRemoved
-
-            -- randomNumber <- evalRandIO $ getRandomR (0, length guessesWithRemovedMax - 1)
-            -- let selectedGuess = fst (guessesWithRemovedMax !! randomNumber)
             selectedGuess <- getSelectedGuess allTargetsWithRemoved     
 
             waitForUserAnswer guesses curGuessNumber difficulty allUniqueTargets selectedGuess maxLieIndex

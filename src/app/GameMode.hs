@@ -8,8 +8,6 @@ import Text.Read (Lexeme(String))
 import Data.Maybe (fromJust, isJust)
 import Common
 
---Rename variables like userGuess to guessinfo so it makes sense. Refactoring basically
-
 startGameMode :: IO ()
 startGameMode = do
     putStrLn $ "\nWhich difficulty would you like to play in: (" ++ easyDifficulty
@@ -132,20 +130,20 @@ resolveGuessResultInExpertMode targetWord guesses curGuessNumber difficulty user
             --Get all the targetWords which would return the same old guesses
             content <- readFile wordsFileNameGameMode
 
-            let allEvaluations = 
+            let allPossibleTargets = 
                     foldr (\newTargetWord acc -> 
                         let evalResults = foldr (\(guessWord, _) acc2 -> (evaluateGuessResult newTargetWord guessWord):acc2) [] guesses
                         in  if evalResults == guesses then newTargetWord:acc else acc) 
                             [] (lines content)
 
-            if length allEvaluations <= 1
+            if length allPossibleTargets <= 1
                 then do
                     putStrLn $ "\nThere are no words that could match the current guesses other than the real word" ++ "\n"
                     resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLied
             else do
-                randomNumber <- evalRandIO $ getRandomR (0, length allEvaluations - 1)
+                randomNumber <- evalRandIO $ getRandomR (0, length allPossibleTargets - 1)
 
-                let fakeTargetWord = allEvaluations !! randomNumber    
+                let fakeTargetWord = allPossibleTargets !! randomNumber    
                     fakeEvaluation = evaluateGuessResult fakeTargetWord userGuess
 
                 putStrLn $ "\nThe fake target word is: " ++ fakeTargetWord ++ "\n"
