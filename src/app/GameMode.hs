@@ -8,6 +8,8 @@ import Text.Read (Lexeme(String))
 import Data.Maybe (fromJust, isJust)
 import Common
 
+--Rename variables like userGuess to guessinfo so it makes sense. Refactoring basically
+
 startGameMode :: IO ()
 startGameMode = do
     putStrLn $ "\nWhich difficulty would you like to play in: (" ++ easyDifficulty
@@ -45,7 +47,7 @@ startGameMode = do
         putStrLn invalidCommand
         startGameMode
 
-userInputGuess :: String -> [UserGuess] -> Int -> GameDifficulty -> Bool -> IO ()
+userInputGuess :: String -> [GuessResult] -> Int -> GameDifficulty -> Bool -> IO ()
 userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser = do
 
     if curGuessNumber > 6
@@ -56,7 +58,7 @@ userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser = do
         putStrAndFlush $ "\nRemaining Guesses " ++ show (7 - curGuessNumber) ++ "\nGuess " ++ show curGuessNumber ++ ": "
 
         userGuess <- getLine
-        contents <- readFile wordsFileName
+        contents <- readFile wordsFileNameGameMode
 
         if userGuess == targetWord
             then do
@@ -65,7 +67,7 @@ userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser = do
         else if length userGuess /= wordsLength
             then do
                 putStrLn invalidCommand
-                userInputGuess targetWord guesses curGuessNumber difficulty False
+                userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser
         else do
             let dictionary = lines contents
                 guessExistsInDictionary = wordExists userGuess dictionary
@@ -74,13 +76,13 @@ userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser = do
             if difficulty == EasyGame && not guessExistsInDictionary
                 then do
                     putStrLn "\nThe word doesn't exist in the dictionary!"
-                    userInputGuess targetWord guesses curGuessNumber difficulty False
+                    userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser
 
             --Check if the word doesn't exist and the game is not in easy diff
             else if difficulty /= EasyGame && not guessExistsInDictionary
                 then do
                     putStrLn "\nThe word doesn't exist in the dictionary! Taking away a guess hehe!"
-                    userInputGuess targetWord guesses (curGuessNumber + 1) difficulty False
+                    userInputGuess targetWord guesses (curGuessNumber + 1) difficulty hasLiedToUser
             else do
                 
                 let wordChecks = [wordContainsUselessGreyLetters, 
@@ -100,15 +102,15 @@ userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser = do
                         userConfirmation <- getLine
 
                         if userConfirmation /= "yes"
-                            then userInputGuess targetWord guesses curGuessNumber difficulty False
+                            then userInputGuess targetWord guesses curGuessNumber difficulty hasLiedToUser
 
-                        else resolveUserGuess targetWord guesses curGuessNumber difficulty userGuess False
+                        else resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLiedToUser
 
                 else if difficulty == ExpertGame 
                     then do 
-                        resolveUserGuessInExpertMode targetWord guesses curGuessNumber difficulty userGuess hasLiedToUser       
+                        resolveGuessResultInExpertMode targetWord guesses curGuessNumber difficulty userGuess hasLiedToUser       
 
-                else resolveUserGuess targetWord guesses curGuessNumber difficulty userGuess False
+                else resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLiedToUser
 
 willLieToUser :: Int -> Bool -> IO Bool
 willLieToUser curGuessNumber hasLied = do
@@ -120,15 +122,15 @@ willLieToUser curGuessNumber hasLied = do
         randomNumber <- evalRandIO $ getRandomR (1, 6)
         return $ randomNumber <= curGuessNumber
 
-resolveUserGuessInExpertMode :: String -> [UserGuess] -> Int -> GameDifficulty -> String -> Bool -> IO ()
-resolveUserGuessInExpertMode targetWord guesses curGuessNumber difficulty userGuess hasLied = do
+resolveGuessResultInExpertMode :: String -> [GuessResult] -> Int -> GameDifficulty -> String -> Bool -> IO ()
+resolveGuessResultInExpertMode targetWord guesses curGuessNumber difficulty userGuess hasLied = do
 
     willLie <- willLieToUser curGuessNumber hasLied
 
     if willLie
         then do
             --Get all the targetWords which would return the same old guesses
-            content <- readFile wordsFileName
+            content <- readFile wordsFileNameGameMode
 
             let allEvaluations = 
                     foldr (\newTargetWord acc -> 
@@ -139,7 +141,7 @@ resolveUserGuessInExpertMode targetWord guesses curGuessNumber difficulty userGu
             if length allEvaluations <= 1
                 then do
                     putStrLn $ "\nThere are no words that could match the current guesses other than the real word" ++ "\n"
-                    resolveUserGuess targetWord guesses curGuessNumber difficulty userGuess hasLied
+                    resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLied
             else do
                 randomNumber <- evalRandIO $ getRandomR (0, length allEvaluations - 1)
 
@@ -148,26 +150,26 @@ resolveUserGuessInExpertMode targetWord guesses curGuessNumber difficulty userGu
 
                 putStrLn $ "\nThe fake target word is: " ++ fakeTargetWord ++ "\n"
 
-                resolveUserGuessByGuessResult targetWord guesses curGuessNumber difficulty fakeEvaluation True      
+                resolveGuessResultByGuessResult targetWord guesses curGuessNumber difficulty fakeEvaluation True      
 
-    else resolveUserGuess targetWord guesses curGuessNumber difficulty userGuess hasLied
+    else resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLied
     
 
-resolveUserGuessByGuessResult :: String -> [UserGuess] -> Int -> GameDifficulty -> UserGuess -> Bool -> IO ()
-resolveUserGuessByGuessResult targetWord guesses curGuessNumber difficulty userGuessResult hasLiedToUser = do
+resolveGuessResultByGuessResult :: String -> [GuessResult] -> Int -> GameDifficulty -> GuessResult -> Bool -> IO ()
+resolveGuessResultByGuessResult targetWord guesses curGuessNumber difficulty userGuessResult hasLiedToUser = do
     putStrLn $ getGuessResultAsString userGuessResult
 
     userInputGuess targetWord (userGuessResult:guesses) (curGuessNumber + 1) difficulty hasLiedToUser
 
-resolveUserGuess :: String -> [UserGuess] -> Int -> GameDifficulty -> String -> Bool -> IO ()
-resolveUserGuess targetWord guesses curGuessNumber difficulty userGuess hasLied = do
+resolveGuessResult :: String -> [GuessResult] -> Int -> GameDifficulty -> String -> Bool -> IO ()
+resolveGuessResult targetWord guesses curGuessNumber difficulty userGuess hasLied = do
     let guessResult = evaluateGuessResult targetWord userGuess
 
-    resolveUserGuessByGuessResult targetWord guesses curGuessNumber difficulty guessResult hasLied
+    resolveGuessResultByGuessResult targetWord guesses curGuessNumber difficulty guessResult hasLied
 
 getRandomWord :: IO String
 getRandomWord = do
-    contents <- readFile wordsFileName
+    contents <- readFile wordsFileNameGameMode
 
     let dictionary = lines contents
         randomNumberGen :: (RandomGen g) => Rand g Int
@@ -186,7 +188,7 @@ wordExists :: String -> [String] -> Bool
 wordExists word dictionary =
     any (\x -> x == word) dictionary
 
-wordDoesNotContainKnownGreenLetters :: String -> [UserGuess] -> Maybe String
+wordDoesNotContainKnownGreenLetters :: String -> [GuessResult] -> Maybe String
 wordDoesNotContainKnownGreenLetters guess oldGuesses = 
     let letterInfos = map (\(_, info) -> info) oldGuesses
 
@@ -209,7 +211,7 @@ wordDoesNotContainKnownGreenLetters guess oldGuesses =
         else Nothing
 
 
-wordDoesNotContainNeededYellowLetters :: String -> [UserGuess] -> Maybe String
+wordDoesNotContainNeededYellowLetters :: String -> [GuessResult] -> Maybe String
 wordDoesNotContainNeededYellowLetters guess oldGuesses= 
     let allLetterInfos = concatMap (\(_, info) -> info) oldGuesses
         yellowLetters = filter (\(letter, status, _) -> status == YELLOW) allLetterInfos
@@ -217,27 +219,11 @@ wordDoesNotContainNeededYellowLetters guess oldGuesses=
             then Just "\nThe word that you chose is missing known yellow letters."
         else Nothing
 
-wordContainsUselessGreyLetters :: String -> [UserGuess] -> Maybe String
+wordContainsUselessGreyLetters :: String -> [GuessResult] -> Maybe String
 wordContainsUselessGreyLetters guess oldGuesses = 
     let letterInfos = map (\(_, info) -> info) oldGuesses
     in  if any (\newLetter -> 
                     any (\letterInfo -> any (\(letter, status, _) -> newLetter == letter && status == GREY) letterInfo) letterInfos) guess 
             then Just "\nThe word that you chose has known grey letters."
         else Nothing
-
-evaluateGuessResult :: String -> String -> UserGuess
-evaluateGuessResult target guess = 
-    let resultsFromGuess :: [LetterInfo]
-        resultsFromGuess = foldr 
-                (\x acc -> 
-                    let targetChar = target !! x
-                        guessChar = guess !! x
-                    in  if guessChar == targetChar
-                            then (guessChar, GREEN, x):acc
-                        else if any (\y -> y == guessChar) target 
-                            then (guessChar, YELLOW, x):acc
-                        else (guessChar, GREY, x):acc) [] [0..(length target - 1)] 
-    in  (guess, resultsFromGuess)
-
--- hFlush stdout
 
