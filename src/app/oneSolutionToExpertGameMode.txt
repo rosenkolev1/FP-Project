@@ -1,0 +1,52 @@
+getPossibleStatuses :: Char -> Int -> [UserGuess] -> [LetterStatus]
+getPossibleStatuses letter index guesses =  
+
+    let guessesInfos = concatMap snd guesses
+
+        isGreyPossible = not (any (\(oldLetter, oldStatus, oldIndex) -> 
+            oldLetter == letter && oldStatus /= GREY) guessesInfos)
+
+        getGrey = if isGreyPossible then [GREY] else []
+
+        isGreenPossible = not (any (\(oldLetter, oldStatus, oldIndex) -> 
+            oldLetter == letter && oldStatus == GREY || 
+            oldIndex == index && oldStatus == GREEN && oldLetter /= letter || 
+            oldIndex == index && oldStatus == YELLOW && oldLetter == letter) guessesInfos) 
+
+        getGreen = if isGreenPossible then [GREEN] else []
+
+        isYellowPossible = not (isGreenPossible || isGreyPossible) || 
+            not (any (\(oldLetter, oldStatus, oldIndex) -> 
+                oldLetter == letter && oldStatus /= YELLOW && oldIndex == index) guessesInfos)
+
+        getYellow = if isYellowPossible then [YELLOW] else []
+
+    in  getGrey ++ getYellow ++ getGreen
+
+resolveUserGuessInExpertMode :: String -> [UserGuess] -> Int -> GameDifficulty -> String -> IO ()
+resolveUserGuessInExpertMode targetWord guesses curGuessNumber difficulty userGuess = do
+
+    let allPossibleStatuses = map 
+            (\i -> map (\x -> (userGuess !! i, x)) (getPossibleStatuses (userGuess !! i) i guesses)) [0..(length userGuess - 1)]
+
+        allCombinations = getAllCombinations allPossibleStatuses
+
+    randomNumber <- evalRandIO $ getRandomR (0, length allCombinations - 1)
+
+    let curCombination = map fromJust (allCombinations !! randomNumber)
+
+        curCombinationWithoutContradictions = foldr (\(l, s) acc -> 
+                let statusesForLetter :: [LetterStatus]
+                    statusesForLetter = map (\(l2, s2) -> s2) (filter (\(l2, s2) -> l2 == l) curCombination)
+                in  if GREY `elem` statusesForLetter && (YELLOW `elem` statusesForLetter || GREEN `elem` statusesForLetter)
+                        then GREY:acc else s:acc) [] curCombination
+
+        fakeUserGuessLettersInfo :: [LetterInfo]
+        fakeUserGuessLettersInfo = zip3 userGuess curCombinationWithoutContradictions [0..]
+
+        fakeUserGuess :: UserGuess
+        fakeUserGuess = (userGuess, fakeUserGuessLettersInfo)
+
+    putStrLn $ "\nThe fake guess result with potential contradictions is: " ++ show curCombination ++ "\n"
+            
+    resolveUserGuessByGuessResult targetWord guesses curGuessNumber difficulty fakeUserGuess

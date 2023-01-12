@@ -2,6 +2,8 @@
 {
   // Automatically created by phoityne-vscode extension.
 
+  // "haskell.hlint.executablePath": "Path "
+
   "version": "2.0.0",
   "presentation": {
     "reveal": "always",
